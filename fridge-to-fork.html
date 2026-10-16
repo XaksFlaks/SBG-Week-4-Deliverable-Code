@@ -1,0 +1,967 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#123c2c">
+  <meta name="description" content="A clearer fridge, a little less waste. Track expiration dates and the purchase value of food consumed or discarded, privately in your browser.">
+  <title>Fridge-to-Fork — Make good food count</title>
+  <style>
+    /* Everything lives in this file. System fonts; no assets or libraries to load. */
+    :root {
+      color-scheme: light;
+      --green: #123c2c;
+      --green-deep: #0d2d21;
+      --green-mid: #315a47;
+      --muted: #53685c;
+      --white: #ffffff;
+      --page: #f8faf8;
+      --tint: #eef4ef;
+      --line: #dce5de;
+      --ring: #23734b;
+      --radius: 22px;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --serif: Georgia, "Times New Roman", serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--green);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: default; }
+    button, input, a { -webkit-tap-highlight-color: transparent; }
+    :focus-visible { outline: 3px solid var(--ring); outline-offset: 4px; }
+    h1, h2, h3, p { margin: 0; }
+    svg { display: block; flex-shrink: 0; }
+    .icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .skip-link {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 10;
+      padding: 12px 18px;
+      border-radius: 10px;
+      background: var(--green);
+      color: var(--white);
+      clip-path: inset(50%);
+      transform: translateY(-170%);
+    }
+    .skip-link:focus { clip-path: none; transform: translateY(0); }
+    .shell { width: min(1120px, calc(100% - 64px)); margin-inline: auto; }
+    .site-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding-block: 26px;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 13px;
+      background: var(--green);
+      color: var(--white);
+    }
+    .brand-mark svg { width: 29px; height: 29px; }
+    .brand-name { font-size: 21px; letter-spacing: -.8px; font-weight: 750; }
+    .brand-subtitle { font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
+    .storage-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--green-mid);
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--white);
+    }
+    .storage-badge .icon { width: 14px; height: 14px; }
+    .intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; padding-block: 36px 28px; }
+    .eyebrow { font-size: 10px; font-weight: 750; letter-spacing: 1.7px; text-transform: uppercase; }
+    .intro .eyebrow { color: var(--green-mid); margin-bottom: 10px; }
+    h1 { font-family: var(--serif); font-size: clamp(32px, 4.1vw, 47px); line-height: 1.13; font-weight: 400; letter-spacing: -1.65px; }
+    .intro-description { max-width: 330px; color: var(--muted); font-size: 14px; line-height: 1.75; padding-bottom: 3px; }
+    .notice {
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      border: 1px solid var(--green-mid);
+      border-left: 5px solid var(--green);
+      border-radius: 12px;
+      background: var(--tint);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+    .notice strong { display: block; margin-bottom: 3px; }
+    .dashboard {
+      padding: 25px 30px 22px;
+      background: var(--green);
+      color: var(--white);
+      border-radius: var(--radius);
+      position: relative;
+      overflow: hidden;
+    }
+    .dashboard-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .dashboard .eyebrow { color: #d5e4d8; }
+    .period { font-size: 11px; color: #d5e4d8; border: 1px solid #557363; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; margin-block: 23px 24px; }
+    .metric { min-width: 0; }
+    .metric + .metric { padding-left: 34px; border-left: 1px solid #557363; }
+    .metric:first-child { padding-right: 25px; }
+    .metric-title { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 500; color: #e4eee6; }
+    .metric-title .icon { width: 17px; height: 17px; }
+    .metric-value { margin-top: 7px; font-size: clamp(36px, 4.8vw, 58px); line-height: 1.15; letter-spacing: -2.2px; font-weight: 650; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+    .metric-value.large-value { font-size: clamp(25px, 3.4vw, 41px); letter-spacing: -1px; }
+    .metric-detail { margin-top: 6px; font-size: 12px; color: #c7dacb; }
+    .comparison-head { display: flex; justify-content: space-between; align-items: baseline; gap: 18px; font-size: 11px; color: #d5e4d8; margin-bottom: 8px; }
+    .comparison-head strong { font-weight: 550; color: var(--white); text-align: right; }
+    .comparison-track { display: flex; height: 8px; overflow: hidden; border-radius: 99px; background: #557363; }
+    .comparison-saved { width: 0%; background: var(--white); transition: width .22s ease; }
+    .comparison-discarded { width: 0%; background: repeating-linear-gradient(135deg, #96b3a0 0px, #96b3a0 4px, #557363 4px, #557363 8px); transition: width .22s ease; }
+    .dashboard-bottom { border-top: 1px solid #557363; margin-top: 20px; padding-top: 16px; display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+    .motivation { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; font-weight: 550; max-width: 500px; }
+    .motivation .icon { width: 17px; height: 17px; margin-top: 2px; }
+    .value-note { max-width: 285px; color: #c7dacb; font-size: 10px; line-height: 1.65; }
+    .activity {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 13px 17px;
+      border-radius: 13px;
+      margin-top: 16px;
+      background: var(--tint);
+      border: 1px solid var(--line);
+    }
+    .activity-copy { font-size: 13px; overflow-wrap: anywhere; }
+    .activity .undo { display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex-shrink: 0; min-height: 44px; padding: 8px 12px; border: 1px solid var(--green); border-radius: 9px; background: var(--white); color: var(--green); font-size: 12px; font-weight: 700; }
+    .activity .undo:hover { background: var(--green); color: var(--white); }
+    .workspace { display: grid; grid-template-columns: 335px minmax(0, 1fr); gap: 27px; margin-top: 30px; align-items: start; }
+    .form-panel { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: 25px 24px; }
+    .section-number { color: var(--muted); margin-bottom: 11px; }
+    .section-title { font-size: 23px; line-height: 1.3; letter-spacing: -.7px; font-weight: 650; }
+    .section-description { color: var(--muted); font-size: 13px; margin-top: 7px; line-height: 1.65; }
+    form { margin-top: 23px; }
+    .field + .field { margin-top: 18px; }
+    label { display: inline-block; font-size: 12px; font-weight: 700; margin-bottom: 7px; }
+    input {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      height: 48px;
+      border: 1px solid #a7b9ad;
+      border-radius: 9px;
+      padding: 11px 13px;
+      background: var(--white);
+      color: var(--green);
+      font-size: 14px;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input::placeholder { color: #66786b; opacity: 1; }
+    input:hover { border-color: var(--green-mid); }
+    input:focus { outline: 2px solid var(--ring); outline-offset: 2px; border-color: var(--green); }
+    input[aria-invalid="true"] { border: 2px solid var(--green); background: #f1f5f1; }
+    input[type="date"] { appearance: auto; -webkit-appearance: auto; }
+    .money-field { position: relative; }
+    .money-field input { padding-left: 30px; padding-right: 51px; }
+    .money-prefix, .money-suffix { position: absolute; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--green-mid); }
+    .money-prefix { left: 13px; font-size: 14px; }
+    .money-suffix { right: 13px; font-size: 10px; font-weight: 650; letter-spacing: .5px; }
+    .field-help { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.55; }
+    .field-error { font-size: 12px; font-weight: 600; color: var(--green-deep); margin-top: 6px; }
+    .primary-button {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 48px;
+      margin-top: 23px;
+      border: 1px solid var(--green);
+      border-radius: 10px;
+      background: var(--green);
+      color: var(--white);
+      font-size: 13px;
+      font-weight: 650;
+      transition: background .15s;
+    }
+    .primary-button:hover { background: var(--green-deep); }
+    .primary-button .icon { width: 17px; height: 17px; }
+    .form-footnote { display: flex; gap: 7px; align-items: flex-start; font-size: 10px; line-height: 1.65; color: var(--muted); padding-top: 16px; margin-top: 18px; border-top: 1px solid var(--line); }
+    .form-footnote .icon { width: 13px; height: 13px; margin-top: 2px; }
+    .pantry { min-width: 0; }
+    .pantry-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .title-with-count { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .item-count { background: var(--tint); border: 1px solid var(--line); color: var(--green-mid); border-radius: 999px; padding: 3px 9px; font-size: 11px; font-weight: 650; white-space: nowrap; }
+    .sort-label { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .sort-label .icon { width: 14px; height: 14px; }
+    .pantry-caption { color: var(--muted); font-size: 12px; margin-top: 9px; line-height: 1.65; }
+    .food-list { padding: 0; margin: 20px 0 0; list-style: none; display: grid; gap: 11px; }
+    .food-card { background: var(--white); border: 1px solid var(--line); border-left: 4px solid #a7b9ad; border-radius: 13px; padding: 17px 18px 14px; }
+    .food-card[data-urgency="past"], .food-card[data-urgency="today"] { border-left-color: var(--green); }
+    .food-card[data-urgency="soon"] { border-left-color: var(--green-mid); }
+    .food-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 15px; }
+    .food-name { font-size: 16px; font-weight: 650; line-height: 1.4; letter-spacing: -.2px; overflow-wrap: anywhere; }
+    .food-value { flex-shrink: 0; font-size: 15px; font-weight: 650; line-height: 1.5; font-variant-numeric: tabular-nums; max-width: 45%; overflow-wrap: anywhere; text-align: right; }
+    .food-date { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); margin-top: 6px; }
+    .food-date .icon { width: 13px; height: 13px; }
+    .food-card-bottom { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-top: 13px; }
+    .date-badge { display: inline-flex; align-items: center; font-size: 10px; line-height: 1.4; font-weight: 700; padding: 5px 8px; border-radius: 6px; background: var(--tint); color: var(--green-mid); }
+    .date-badge[data-urgency="past"] { background: var(--green); color: var(--white); }
+    .date-badge[data-urgency="today"] { background: #dce9df; color: var(--green-deep); }
+    .date-badge[data-urgency="soon"] { border: 1px solid #a7b9ad; padding: 4px 7px; }
+    .food-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .item-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 8px 10px; font-size: 11px; font-weight: 650; border: 1px solid transparent; border-radius: 8px; background: var(--white); color: var(--green-mid); }
+    .item-button .icon { width: 14px; height: 14px; }
+    .item-button[data-action="consumed"] { background: var(--tint); border-color: var(--line); color: var(--green); }
+    .item-button[data-action="consumed"]:hover { background: var(--green); border-color: var(--green); color: var(--white); }
+    .item-button[data-action="discarded"]:hover { background: var(--tint); border-color: var(--line); color: var(--green); }
+    .empty-state { margin-top: 20px; min-height: 335px; padding: 35px 28px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border: 1px dashed #a7b9ad; border-radius: var(--radius); background: var(--white); }
+    .empty-art { width: 112px; height: 112px; margin-bottom: 21px; }
+    .empty-title { font-family: var(--serif); font-size: 26px; font-weight: 400; letter-spacing: -.7px; }
+    .empty-copy { max-width: 285px; font-size: 13px; color: var(--muted); margin-top: 9px; line-height: 1.75; }
+    .safety-note { display: flex; align-items: flex-start; gap: 6px; color: var(--muted); font-size: 10px; line-height: 1.65; margin-top: 15px; }
+    .safety-note .icon { width: 13px; height: 13px; margin-top: 2px; }
+    .site-footer { margin-block: 33px 25px; padding-top: 19px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px 30px; color: var(--muted); font-size: 11px; line-height: 1.65; }
+    .footer-privacy { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+    .footer-privacy .icon { width: 13px; height: 13px; }
+    .file-note { max-width: 550px; text-align: right; font-size: 10px; }
+    .noscript { margin-top: 24px; }
+    @media (min-width: 960px) { .form-panel { position: sticky; top: 24px; } }
+    @media (max-width: 960px) {
+      .shell { width: min(1120px, calc(100% - 40px)); }
+      .workspace { grid-template-columns: 300px minmax(0, 1fr); gap: 20px; }
+      .form-panel { padding: 23px 20px; }
+      .food-card-bottom { align-items: flex-start; flex-direction: column; gap: 9px; }
+      .food-actions { width: 100%; }
+      .item-button { flex: 1; }
+      .sort-label { display: none; }
+    }
+    @media (max-width: 720px) {
+      .intro { align-items: flex-start; flex-direction: column; gap: 14px; padding-block: 28px 23px; }
+      .intro-description { max-width: 450px; font-size: 13px; }
+      .intro h1 br { display: none; }
+      .dashboard { padding: 22px; }
+      .dashboard-bottom { flex-direction: column; gap: 11px; }
+      .value-note { max-width: none; }
+      .metric + .metric { padding-left: 20px; }
+      .metric:first-child { padding-right: 16px; }
+      .metric-title { font-size: 12px; gap: 6px; }
+      .metric-title .icon { width: 15px; height: 15px; }
+      .metric-value { font-size: clamp(30px, 6.5vw, 44px); letter-spacing: -1.5px; }
+      .workspace { grid-template-columns: 1fr; gap: 28px; margin-top: 24px; }
+      .form-panel { padding: 23px; }
+      .form-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 17px; }
+      .field + .field { margin-top: 0; }
+      .field:first-child { grid-column: 1 / -1; }
+      .form-footnote { padding-top: 13px; margin-top: 14px; }
+      .sort-label { display: flex; }
+      .food-card-bottom { flex-direction: row; align-items: center; }
+      .food-actions { width: auto; }
+      .item-button { flex: initial; }
+      .site-footer { flex-direction: column; }
+      .file-note { text-align: left; max-width: none; }
+      .empty-state { min-height: 285px; }
+    }
+    @media (max-width: 430px) {
+      .shell { width: calc(100% - 32px); }
+      .site-header { padding-block: 19px; gap: 10px; }
+      .brand { gap: 9px; }
+      .brand-mark { width: 34px; height: 34px; border-radius: 10px; }
+      .brand-mark svg { width: 24px; height: 24px; }
+      .brand-name { font-size: 18px; }
+      .brand-subtitle { font-size: 9px; letter-spacing: .85px; }
+      .storage-badge { padding: 7px 8px; font-size: 10px; gap: 4px; }
+      .storage-badge .icon { display: none; }
+      h1 { font-size: 35px; letter-spacing: -1.1px; }
+      .dashboard { padding: 20px 18px; }
+      .dashboard-top .eyebrow { font-size: 9px; letter-spacing: 1.1px; }
+      .period { font-size: 10px; padding: 3px 8px; }
+      .metrics { margin-block: 22px; }
+      .metric-title { display: block; font-size: 11px; }
+      .metric-title .icon { display: none; }
+      .metric-value { font-size: 34px; }
+      .metric-detail { font-size: 10px; }
+      .metric + .metric { padding-left: 15px; }
+      .metric:first-child { padding-right: 12px; }
+      .comparison-head { font-size: 10px; gap: 10px; }
+      .motivation { font-size: 12px; }
+      .form-panel { padding: 22px 19px; }
+      .form-fields { grid-template-columns: 1fr; gap: 17px; }
+      input { font-size: 16px; }
+      .sort-label { font-size: 10px; }
+      .section-title { font-size: 22px; }
+      .food-card { padding: 15px 13px 12px; }
+      .food-card-bottom { flex-direction: column; align-items: flex-start; }
+      .food-actions { width: 100%; }
+      .item-button { flex: 1; font-size: 11px; }
+      .activity { gap: 10px; padding: 12px; }
+      .activity-copy { font-size: 12px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <!-- Inline SVG symbols are decorative; every control has its own text label. -->
+  <svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;overflow:hidden">
+    <defs>
+      <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+      <symbol id="icon-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7M14 10v7"/></symbol>
+      <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="icon-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2"/></symbol>
+      <symbol id="icon-leaf" viewBox="0 0 24 24"><path d="M19 4C9 3 4 8 5 14c1 4 6 5 9 2 4-3 5-7 5-12ZM4 20 15 9"/></symbol>
+      <symbol id="icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></symbol>
+      <symbol id="icon-sort" viewBox="0 0 24 24"><path d="M5 4v15m-3-3 3 3 3-3M12 5h9M12 10h6M12 15h3"/></symbol>
+      <symbol id="icon-undo" viewBox="0 0 24 24"><path d="m8 5-5 5 5 5M3 10h10a6 6 0 0 1 0 12"/></symbol>
+      <symbol id="icon-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></symbol>
+    </defs>
+  </svg>
+  <div class="shell">
+    <header class="site-header">
+      <div class="brand" aria-label="Fridge-to-Fork">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 5v7m-3-7v5a3 3 0 0 0 6 0V5M9 13v14M17 20C15 12 19 6 27 6c0 9-4 15-10 14Zm-3 7L24 11"/>
+          </svg>
+        </span>
+        <div><p class="brand-name">Fridge-to-Fork</p><p class="brand-subtitle">Make good food count</p></div>
+      </div>
+      <span class="storage-badge" id="storage-badge" title="Your records are stored only in this browser, without an account.">
+        <svg class="icon" aria-hidden="true"><use href="#icon-lock"/></svg>
+        <span id="storage-label">Local to this browser</span>
+      </span>
+    </header>
+    <main id="main" tabindex="-1">
+      <noscript><div class="notice noscript"><strong>JavaScript is needed for this food tracker.</strong>Enable JavaScript in your browser to add food, record outcomes, and save your records locally. No information is sent to a server.</div></noscript>
+      <section class="intro" aria-labelledby="page-title">
+        <div><p class="eyebrow">A little visibility. A little less waste.</p><h1 id="page-title">Make the most of<br> what’s in your fridge.</h1></div>
+        <p class="intro-description">Know what needs using. See the value of food you enjoy instead of throwing away.</p>
+      </section>
+      <div class="notice" id="storage-warning" role="alert" hidden>
+        <strong>Potential Limitation: your changes are session-only.</strong>
+        <p id="storage-warning-text"></p>
+      </div>
+      <section class="dashboard" aria-labelledby="dashboard-title">
+        <div class="dashboard-top"><h2 class="eyebrow" id="dashboard-title">Your food, in dollars</h2><span class="period">All-time · USD</span></div>
+        <div class="metrics">
+          <div class="metric">
+            <h3 class="metric-title"><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>Food value saved</h3>
+            <p class="metric-value" id="saved-total">$0.00</p>
+            <p class="metric-detail" id="saved-count">0 items consumed</p>
+            <p class="metric-detail" id="saved-average">Avg. per item: $0.00</p>
+          </div>
+          <div class="metric">
+            <h3 class="metric-title"><svg class="icon" aria-hidden="true"><use href="#icon-trash"/></svg>Food value discarded</h3>
+            <p class="metric-value" id="discarded-total">$0.00</p>
+            <p class="metric-detail" id="discarded-count">0 items thrown away</p>
+          </div>
+        </div>
+        <div class="comparison-head"><span>Saved vs. discarded value</span><strong id="comparison-caption">No outcomes recorded yet</strong></div>
+        <div class="comparison-track" id="comparison-chart" role="img" aria-label="No consumed or discarded food value recorded yet.">
+          <span class="comparison-saved" id="comparison-saved"></span><span class="comparison-discarded" id="comparison-discarded"></span>
+        </div>
+        <div class="dashboard-bottom">
+          <p class="motivation"><svg class="icon" aria-hidden="true"><use href="#icon-leaf"/></svg><span id="motivation">Your next good habit starts with one item.</span></p>
+          <p class="value-note">“Saved” is the purchase value of food consumed rather than discarded—not verified cash savings.</p>
+        </div>
+      </section>
+      <div class="activity" id="activity" hidden>
+        <p class="activity-copy" id="activity-copy"></p>
+        <button class="undo" id="undo-button" type="button" hidden><svg class="icon" aria-hidden="true"><use href="#icon-undo"/></svg>Undo</button>
+      </div>
+      <div class="workspace">
+        <section class="form-panel" aria-labelledby="add-title">
+          <p class="eyebrow section-number">01 / Stock your fridge</p>
+          <h2 class="section-title" id="add-title">Add food</h2>
+          <p class="section-description">One item or batch. A date. Its value.<br>That’s all you need to get started.</p>
+          <form id="food-form" novalidate>
+            <div class="form-fields">
+              <div class="field">
+                <label for="food-name">Food name</label>
+                <input id="food-name" name="foodName" type="text" required maxlength="100" autocomplete="off" placeholder="e.g. Spinach, milk, leftovers" aria-describedby="name-error">
+                <p class="field-error" id="name-error" hidden></p>
+              </div>
+              <div class="field">
+                <label for="food-value">Purchase value</label>
+                <div class="money-field"><span class="money-prefix" aria-hidden="true">$</span><input id="food-value" name="foodValue" type="text" inputmode="decimal" required autocomplete="off" placeholder="0.00" aria-describedby="value-help value-error"><span class="money-suffix" aria-hidden="true">USD</span></div>
+                <p class="field-help" id="value-help">Total cost of this whole item or batch, in USD.</p>
+                <p class="field-error" id="value-error" hidden></p>
+              </div>
+              <div class="field">
+                <label for="food-date">Expiration date</label>
+                <input id="food-date" name="expirationDate" type="date" required aria-describedby="date-help date-error">
+                <p class="field-help" id="date-help">Use the date you want to keep an eye on.</p>
+                <p class="field-error" id="date-error" hidden></p>
+              </div>
+            </div>
+            <button class="primary-button" type="submit"><svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>Add to my fridge</button>
+          </form>
+          <p class="form-footnote"><svg class="icon" aria-hidden="true"><use href="#icon-info"/></svg>Each entry is tracked as entirely consumed or entirely thrown away.</p>
+        </section>
+        <section class="pantry" aria-labelledby="pantry-title">
+          <p class="eyebrow section-number">02 / Use it well</p>
+          <div class="pantry-heading">
+            <div class="title-with-count"><h2 class="section-title" id="pantry-title" tabindex="-1">Your fridge</h2><span class="item-count" id="item-count">0 items</span></div>
+            <span class="sort-label"><svg class="icon" aria-hidden="true"><use href="#icon-sort"/></svg>Soonest first</span>
+          </div>
+          <p class="pantry-caption" id="pantry-caption">A simple list. The soonest dates always come first.</p>
+          <ul class="food-list" id="food-list" aria-label="Food in your fridge, earliest expiration first" hidden></ul>
+          <div class="empty-state" id="empty-state">
+            <svg class="empty-art" viewBox="0 0 112 112" fill="none" aria-hidden="true">
+              <circle cx="56" cy="56" r="54" fill="#eef4ef"/>
+              <rect x="32" y="16" width="48" height="78" rx="7" fill="#fff" stroke="#315a47" stroke-width="1.7"/>
+              <path d="M32 45h48M41 29v8M41 55v12M42 94v4M70 94v4" stroke="#315a47" stroke-width="1.7" stroke-linecap="round"/>
+              <path d="M52 75c-2-9 4-15 15-15 0 11-5 17-15 15Z" fill="#dce9df" stroke="#315a47" stroke-width="1.5"/>
+              <path d="m47 81 15-16" stroke="#315a47" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M20 48h5m-3-2v4M88 76h5m-3-2v4" stroke="#315a47" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+            <h3 class="empty-title" id="empty-title">A clearer fridge starts here.</h3>
+            <p class="empty-copy" id="empty-copy">Add your first item. We’ll bring the soonest dates to the top, so good food doesn’t get forgotten.</p>
+          </div>
+          <p class="safety-note"><svg class="icon" aria-hidden="true"><use href="#icon-info"/></svg>Dates are planning cues, not food safety advice. Past-date items are never automatically thrown away.</p>
+        </section>
+      </div>
+      <p class="sr-only" id="live-status" role="status" aria-live="polite" aria-atomic="true"></p>
+    </main>
+    <footer class="site-footer">
+      <p class="footer-privacy"><svg class="icon" aria-hidden="true"><use href="#icon-lock"/></svg>No account. No tracking. Just your fridge.</p>
+      <p id="local-note">Records stay in this browser. Clearing browser data removes them.</p>
+      <p class="file-note"><strong>Potential Limitation:</strong> simultaneous edits in different tabs may conflict. For reliable updates, edit in one tab at a time.</p>
+      <p class="file-note" id="file-note" hidden><strong>Potential Limitation:</strong> local-file storage varies by browser. Use the same file and browser; serving this file from a stable HTTP/HTTPS address gives more predictable persistence.</p>
+    </footer>
+  </div>
+  <script>
+    (() => {
+      'use strict';
+
+      const STORAGE_KEY = 'fridgeToFork:v1';
+      const DAY_MS = 86400000;
+      const SVG_NS = 'http://www.w3.org/2000/svg';
+      const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+      const dates = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const $ = (id) => document.getElementById(id);
+      const ui = {
+        form: $('food-form'), name: $('food-name'), value: $('food-value'), date: $('food-date'),
+        list: $('food-list'), listTitle: $('pantry-title'), empty: $('empty-state'),
+        activity: $('activity'), activityCopy: $('activity-copy'), undo: $('undo-button'),
+        live: $('live-status')
+      };
+      let state = emptyState();
+      let storageAvailable = true;
+      let midnightTimer;
+      let announcementTimer;
+      let idCounter = 0;
+
+      function emptyState() {
+        return { version: 1, currency: 'USD', items: [], lastAction: null };
+      }
+
+      function formatMoney(cents) {
+        // Format whole dollars, then use the exact integer-cent remainder. This also
+        // preserves the last cent for unusually large values near MAX_SAFE_INTEGER.
+        const fraction = String(cents % 100).padStart(2, '0');
+        return money.formatToParts(Math.floor(cents / 100))
+          .map((part) => part.type === 'fraction' ? fraction : part.value).join('');
+      }
+
+      function itemWord(count) {
+        return count === 1 ? 'item' : 'items';
+      }
+
+      // Date-only input is handled as a local calendar date, never as a UTC instant.
+      function dateParts(value) {
+        if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+        const [year, month, day] = value.split('-').map(Number);
+        if (year < 1 || year > 9999 || month < 1 || month > 12 || day < 1 || day > 31) return null;
+        const check = new Date(0);
+        check.setHours(12, 0, 0, 0);
+        check.setFullYear(year, month - 1, day);
+        return check.getFullYear() === year && check.getMonth() === month - 1 && check.getDate() === day
+          ? { year, month, day } : null;
+      }
+
+      // UTC is used only to turn calendar components into an ordinal day number.
+      // Subtracting these ordinals avoids 23/25-hour daylight-saving day errors.
+      function dayNumber(year, month, day) {
+        const calendar = new Date(0);
+        calendar.setUTCHours(0, 0, 0, 0);
+        calendar.setUTCFullYear(year, month - 1, day);
+        return calendar.getTime() / DAY_MS;
+      }
+
+      function todayNumber() {
+        const now = new Date();
+        return dayNumber(now.getFullYear(), now.getMonth() + 1, now.getDate());
+      }
+
+      function daysUntil(date, today = todayNumber()) {
+        const parts = dateParts(date);
+        return dayNumber(parts.year, parts.month, parts.day) - today;
+      }
+
+      function formatDate(value) {
+        const parts = dateParts(value);
+        const localDate = new Date(0);
+        localDate.setHours(12, 0, 0, 0);
+        localDate.setFullYear(parts.year, parts.month - 1, parts.day);
+        return dates.format(localDate);
+      }
+
+      function urgency(days) {
+        if (days < 0) return { kind: 'past', text: `${Math.abs(days)} ${Math.abs(days) === 1 ? 'day' : 'days'} past date` };
+        if (days === 0) return { kind: 'today', text: 'Date is today' };
+        if (days <= 3) return { kind: 'soon', text: `${days} ${days === 1 ? 'day' : 'days'} left · Use soon` };
+        return { kind: 'later', text: `${days} days left` };
+      }
+
+      function parseCents(raw) {
+        const value = raw.trim().replace(/^\$\s*/, '');
+        if (!/^(?:\d+(?:\.\d{0,2})?|\.\d{1,2})$/.test(value)) return null;
+        const [whole = '', fraction = ''] = value.split('.');
+        const cents = Number(whole || '0') * 100 + Number(fraction.padEnd(2, '0'));
+        return Number.isSafeInteger(cents) && cents >= 0 ? cents : null;
+      }
+
+      function isTimestamp(value) {
+        return typeof value === 'string' && Number.isFinite(Date.parse(value));
+      }
+
+      // Reject malformed histories rather than silently dropping records or resetting totals.
+      function validateState(candidate) {
+        if (!candidate || candidate.version !== 1 || candidate.currency !== 'USD' || !Array.isArray(candidate.items)) {
+          throw new Error('Unsupported or invalid saved data.');
+        }
+        const ids = new Set();
+        let totalRecorded = 0;
+        for (const item of candidate.items) {
+          if (!item || typeof item.id !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(item.id) || ids.has(item.id)
+              || typeof item.name !== 'string' || !item.name.trim() || item.name.length > 100
+              || !Number.isSafeInteger(item.valueCents) || item.valueCents < 0 || !dateParts(item.expirationDate)
+              || !['active', 'consumed', 'discarded'].includes(item.status) || !isTimestamp(item.createdAt)
+              || (item.status === 'active' ? item.resolvedAt !== null : !isTimestamp(item.resolvedAt))) {
+            throw new Error('A saved food record is invalid.');
+          }
+          ids.add(item.id);
+          totalRecorded += item.valueCents;
+          if (!Number.isSafeInteger(totalRecorded)) throw new Error('Saved values exceed the supported range.');
+        }
+        const action = candidate.lastAction ?? null;
+        if (action !== null) {
+          const item = candidate.items.find((entry) => entry.id === action.itemId);
+          if (!item || !['consumed', 'discarded'].includes(action.status) || item.status !== action.status
+              || item.resolvedAt !== action.resolvedAt) throw new Error('The saved Undo action is invalid.');
+        }
+        // Copy only known fields; nothing user-controlled is ever inserted as HTML.
+        return {
+          version: 1, currency: 'USD',
+          items: candidate.items.map((item) => ({
+            id: item.id, name: item.name, valueCents: item.valueCents,
+            expirationDate: item.expirationDate, status: item.status,
+            createdAt: item.createdAt, resolvedAt: item.resolvedAt
+          })),
+          lastAction: action ? { itemId: action.itemId, status: action.status, resolvedAt: action.resolvedAt } : null
+        };
+      }
+
+      function disablePersistence(message) {
+        storageAvailable = false;
+        $('storage-label').textContent = 'Session only';
+        $('storage-badge').title = 'Changes are kept in memory only and will not survive a reload.';
+        $('storage-warning-text').textContent = message;
+        $('storage-warning').hidden = false;
+        $('local-note').textContent = 'Temporary session: reloading or closing this page loses session-only changes.';
+      }
+
+      function loadState() {
+        let raw;
+        try {
+          raw = window.localStorage.getItem(STORAGE_KEY);
+        } catch {
+          disablePersistence('Browser storage is unavailable. You can still use the app, but new changes will be lost on reload. Try a regular browsing window with site storage allowed, or serve this same file from a stable HTTP/HTTPS address.');
+          return;
+        }
+        if (raw !== null) {
+          try {
+            state = validateState(JSON.parse(raw));
+          } catch {
+            disablePersistence('Existing saved data could not be read. It has not been overwritten. This session starts with an empty fridge and is temporary; use the original browser/address with valid saved data to recover your history.');
+            return;
+          }
+        }
+        // Reading can succeed when writing is denied or the browser's quota is full.
+        try {
+          const probe = `${STORAGE_KEY}:probe`;
+          window.localStorage.setItem(probe, '1');
+          window.localStorage.removeItem(probe);
+        } catch {
+          disablePersistence('Saved records, if readable, are shown below, but the browser cannot store new changes. This session is temporary. Allow site storage or use a regular browsing window at a stable HTTP/HTTPS address; avoid clearing existing data if you need your history.');
+        }
+      }
+
+      // Read the latest history before each mutation to reduce stale-tab overwrites.
+      // localStorage is not transactional; exactly simultaneous writes in different tabs
+      // cannot be guaranteed to merge. The storage event keeps ordinary tab use in sync.
+      function syncLatestBeforeChange() {
+        if (!storageAvailable) return;
+        let raw;
+        try {
+          raw = window.localStorage.getItem(STORAGE_KEY);
+        } catch {
+          disablePersistence('Browser storage became unavailable. Your current records remain visible, but further changes are session-only and will be lost on reload. Allow site storage or use this file at a stable HTTP/HTTPS address.');
+          return;
+        }
+        try {
+          state = raw === null ? emptyState() : validateState(JSON.parse(raw));
+        } catch {
+          disablePersistence('Saved data changed and can no longer be read safely. It has not been overwritten. Your visible records can be used for this session only; use the original browser/address with valid saved data to recover persistent history.');
+        }
+      }
+
+      function persist() {
+        if (!storageAvailable) return false;
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          return true;
+        } catch {
+          disablePersistence('The browser could not save this change, possibly because storage is blocked or full. The change is visible for this session only. Allow site storage or use a regular browsing window at a stable HTTP/HTTPS address; existing saved data has not been intentionally deleted.');
+          return false;
+        }
+      }
+
+      function makeId() {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+        // A local-only fallback also works in browsers without a secure-context UUID API.
+        let id;
+        do {
+          idCounter += 1;
+          id = `food_${Date.now().toString(36)}_${idCounter}_${Math.random().toString(36).slice(2, 10)}`;
+        } while (state.items.some((item) => item.id === id));
+        return id;
+      }
+
+      function activeItems() {
+        return state.items.filter((item) => item.status === 'active').sort((a, b) => {
+          const dateOrder = a.expirationDate.localeCompare(b.expirationDate);
+          // Modern JavaScript's stable sort preserves insertion order for exact ties.
+          return dateOrder || a.createdAt.localeCompare(b.createdAt);
+        });
+      }
+
+      function getTotals() {
+        const totals = { saved: 0, discarded: 0, consumedCount: 0, discardedCount: 0 };
+        for (const item of state.items) {
+          if (item.status === 'consumed') { totals.saved += item.valueCents; totals.consumedCount += 1; }
+          if (item.status === 'discarded') { totals.discarded += item.valueCents; totals.discardedCount += 1; }
+        }
+        return totals;
+      }
+
+      function icon(name) {
+        const svg = document.createElementNS(SVG_NS, 'svg');
+        svg.setAttribute('class', 'icon');
+        svg.setAttribute('aria-hidden', 'true');
+        const use = document.createElementNS(SVG_NS, 'use');
+        use.setAttribute('href', `#icon-${name}`);
+        svg.append(use);
+        return svg;
+      }
+
+      function element(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+      }
+
+      function itemButton(item, action, text, iconName) {
+        const button = element('button', 'item-button');
+        button.type = 'button';
+        button.dataset.action = action;
+        button.dataset.id = item.id;
+        button.id = `${action}-${item.id}`;
+        button.setAttribute('aria-label', `${action === 'consumed' ? 'Mark as consumed' : 'Mark as thrown away'}: ${item.name}`);
+        button.append(icon(iconName), element('span', '', text));
+        return button;
+      }
+
+      function renderItem(item, today) {
+        const li = element('li');
+        const card = element('article', 'food-card');
+        const dateStatus = urgency(daysUntil(item.expirationDate, today));
+        card.dataset.urgency = dateStatus.kind;
+        card.setAttribute('aria-labelledby', `name-${item.id}`);
+        const top = element('div', 'food-card-top');
+        const heading = element('h3', 'food-name', item.name);
+        heading.id = `name-${item.id}`;
+        top.append(heading, element('p', 'food-value', formatMoney(item.valueCents)));
+        const dateLine = element('p', 'food-date');
+        const time = element('time', '', formatDate(item.expirationDate));
+        time.setAttribute('datetime', item.expirationDate);
+        dateLine.append(icon('clock'), element('span', '', 'Expiration:'), time);
+        const bottom = element('div', 'food-card-bottom');
+        const badge = element('span', 'date-badge', dateStatus.text);
+        badge.dataset.urgency = dateStatus.kind;
+        const actions = element('div', 'food-actions');
+        actions.append(itemButton(item, 'consumed', 'Consumed', 'check'), itemButton(item, 'discarded', 'Thrown away', 'trash'));
+        bottom.append(badge, actions);
+        card.append(top, dateLine, bottom);
+        li.append(card);
+        return li;
+      }
+
+      function renderDashboard(active, today) {
+        const totals = getTotals();
+        $('saved-total').textContent = formatMoney(totals.saved);
+        $('discarded-total').textContent = formatMoney(totals.discarded);
+        $('saved-total').classList.toggle('large-value', totals.saved >= 100000000);
+        $('discarded-total').classList.toggle('large-value', totals.discarded >= 100000000);
+        $('saved-count').textContent = `${totals.consumedCount} ${itemWord(totals.consumedCount)} consumed`;
+        const averageSaved = totals.consumedCount > 0 ? Math.round(totals.saved / totals.consumedCount) : 0;
+        $('saved-average').textContent = `Avg. per item: ${formatMoney(averageSaved)}`;
+        $('discarded-count').textContent = `${totals.discardedCount} ${itemWord(totals.discardedCount)} thrown away`;
+        const resolvedValue = totals.saved + totals.discarded;
+        const resolvedCount = totals.consumedCount + totals.discardedCount;
+        const savedShare = resolvedValue > 0 ? totals.saved / resolvedValue * 100 : 0;
+        $('comparison-saved').style.width = `${savedShare}%`;
+        $('comparison-discarded').style.width = `${resolvedValue > 0 ? 100 - savedShare : 0}%`;
+        $('comparison-caption').textContent = resolvedValue > 0
+          ? `${Math.round(savedShare)}% of recorded value saved`
+          : resolvedCount > 0 ? 'Outcomes recorded · $0.00 value' : 'No outcomes recorded yet';
+        $('comparison-chart').setAttribute('aria-label', resolvedValue > 0
+          ? `Food value saved: ${formatMoney(totals.saved)}, solid segment. Food value discarded: ${formatMoney(totals.discarded)}, striped segment.`
+          : 'No positive consumed or discarded food value recorded; comparison bar is empty.');
+        const pastCount = active.filter((item) => daysUntil(item.expirationDate, today) < 0).length;
+        const soonCount = active.filter((item) => { const days = daysUntil(item.expirationDate, today); return days >= 0 && days <= 3; }).length;
+        let message = 'Your next good habit starts with one item.';
+        if (pastCount > 0) message = `${pastCount} ${itemWord(pastCount)} past the entered date. Check the label and decide what’s appropriate.`;
+        else if (soonCount > 0) message = `${soonCount} ${itemWord(soonCount)} ${soonCount === 1 ? 'has' : 'have'} a date within 3 days. Plan your next meal around what you have.`;
+        else if (totals.saved > 0) message = `You’ve enjoyed ${formatMoney(totals.saved)} worth of food. Keep making good food count.`;
+        else if (totals.consumedCount > 0) message = 'Good food put to good use. Every item counts, even without a purchase cost.';
+        else if (active.length > 0) message = 'A clearer fridge is a good start. Use the soonest dates to plan ahead.';
+        else if (totals.discardedCount > 0) message = 'Every recorded outcome is useful. Start fresh with your next item.';
+        $('motivation').textContent = message;
+      }
+
+      function renderActivity(message) {
+        const action = state.lastAction;
+        const item = action ? state.items.find((entry) => entry.id === action.itemId) : null;
+        ui.undo.hidden = !item;
+        if (item) ui.undo.setAttribute('aria-label', `Undo ${action.status === 'consumed' ? 'consumed' : 'thrown-away'} outcome for ${item.name}`);
+        else ui.undo.removeAttribute('aria-label');
+        if (message !== undefined) ui.activityCopy.textContent = message;
+        else if (item) ui.activityCopy.textContent = `${item.name} marked as ${action.status === 'consumed' ? 'consumed' : 'thrown away'}. You can undo the latest outcome.`;
+        else ui.activityCopy.textContent = '';
+        ui.activity.hidden = !ui.activityCopy.textContent && !item;
+      }
+
+      function render(message) {
+        const active = activeItems();
+        const today = todayNumber();
+        renderDashboard(active, today);
+        $('item-count').textContent = `${active.length} ${itemWord(active.length)}`;
+        const needingAttention = active.filter((item) => daysUntil(item.expirationDate, today) <= 3).length;
+        $('pantry-caption').textContent = active.length === 0
+          ? 'A simple list. The soonest dates always come first.'
+          : needingAttention > 0
+            ? `${needingAttention} ${itemWord(needingAttention)} with a date today, within 3 days, or in the past.`
+            : 'You’re ahead of the dates. Keep the soonest items in mind.';
+        ui.list.replaceChildren(...active.map((item) => renderItem(item, today)));
+        ui.list.hidden = active.length === 0;
+        ui.empty.hidden = active.length > 0;
+        $('empty-title').textContent = state.items.length > 0 ? 'All clear for now.' : 'A clearer fridge starts here.';
+        $('empty-copy').textContent = state.items.length > 0
+          ? 'No active items left. Your all-time totals are still here. Add what’s next, or undo your latest outcome.'
+          : 'Add your first item. We’ll bring the soonest dates to the top, so good food doesn’t get forgotten.';
+        renderActivity(message);
+      }
+
+      function announce(message) {
+        window.clearTimeout(announcementTimer);
+        ui.live.textContent = '';
+        announcementTimer = window.setTimeout(() => { ui.live.textContent = message; }, 40);
+      }
+
+      function sessionSuffix() {
+        return storageAvailable ? '' : ' Session only; not saved to browser storage.';
+      }
+
+      function setFieldError(input, errorId, message) {
+        const error = $(errorId);
+        error.textContent = message;
+        error.hidden = !message;
+        if (message) input.setAttribute('aria-invalid', 'true');
+        else input.removeAttribute('aria-invalid');
+      }
+
+      function clearErrors() {
+        setFieldError(ui.name, 'name-error', '');
+        setFieldError(ui.value, 'value-error', '');
+        setFieldError(ui.date, 'date-error', '');
+      }
+
+      function addItem(event) {
+        event.preventDefault();
+        clearErrors();
+        const name = ui.name.value.trim();
+        const valueCents = parseCents(ui.value.value);
+        const date = ui.date.value;
+        const errors = [];
+        if (!name || name.length > 100) {
+          setFieldError(ui.name, 'name-error', 'Enter a food name, up to 100 characters.'); errors.push(ui.name);
+        }
+        if (valueCents === null) {
+          setFieldError(ui.value, 'value-error', 'Enter a nonnegative USD amount with up to 2 decimal places, such as 4.50.'); errors.push(ui.value);
+        }
+        if (!dateParts(date)) {
+          setFieldError(ui.date, 'date-error', 'Choose a valid expiration date. Past dates are allowed.'); errors.push(ui.date);
+        }
+        if (errors.length) {
+          errors[0].focus();
+          announce('Food was not added. Please check the highlighted fields.');
+          return;
+        }
+        syncLatestBeforeChange();
+        const recordedValue = state.items.reduce((sum, item) => sum + item.valueCents, 0);
+        if (!Number.isSafeInteger(recordedValue + valueCents)) {
+          setFieldError(ui.value, 'value-error', 'This value would exceed the app’s safe calculation range. Enter a smaller amount.');
+          ui.value.focus();
+          announce('Food was not added. The purchase value is too large.');
+          return;
+        }
+        state.items.push({
+          id: makeId(), name, valueCents, expirationDate: date, status: 'active',
+          createdAt: new Date().toISOString(), resolvedAt: null
+        });
+        persist();
+        const message = `${name} added to your fridge.${sessionSuffix()}`;
+        render(message);
+        ui.form.reset();
+        clearErrors();
+        ui.name.focus();
+        announce(message);
+      }
+
+      function resolveItem(id, status) {
+        if (!['consumed', 'discarded'].includes(status)) return;
+        syncLatestBeforeChange();
+        const before = activeItems();
+        const index = before.findIndex((entry) => entry.id === id);
+        const item = state.items.find((entry) => entry.id === id);
+        // The status guard makes repeat clicks harmless, even from a stale tab.
+        if (!item || item.status !== 'active') {
+          render();
+          ui.listTitle.focus();
+          announce('This item has already changed. Your fridge has been updated.');
+          return;
+        }
+        item.status = status;
+        item.resolvedAt = new Date().toISOString();
+        state.lastAction = { itemId: item.id, status, resolvedAt: item.resolvedAt };
+        persist();
+        const message = `${item.name} marked as ${status === 'consumed' ? 'consumed' : 'thrown away'}. ${formatMoney(item.valueCents)} ${status === 'consumed' ? 'saved' : 'discarded'}.${sessionSuffix()}`;
+        render(message);
+        const next = activeItems();
+        const target = next[Math.min(Math.max(index, 0), next.length - 1)];
+        if (target) $(`${status}-${target.id}`).focus();
+        else ui.listTitle.focus();
+        const totals = getTotals();
+        announce(`${message} All-time food value saved: ${formatMoney(totals.saved)}. Discarded: ${formatMoney(totals.discarded)}. Undo is available.`);
+      }
+
+      function undoLastOutcome() {
+        // Never undo a different outcome just because another tab changed lastAction.
+        const displayedAction = state.lastAction ? { ...state.lastAction } : null;
+        syncLatestBeforeChange();
+        const action = state.lastAction;
+        if (!action || !displayedAction || action.itemId !== displayedAction.itemId || action.status !== displayedAction.status
+            || action.resolvedAt !== displayedAction.resolvedAt) {
+          render();
+          ui.listTitle.focus();
+          announce('The latest outcome changed in another tab. Check the updated Undo action.');
+          return;
+        }
+        const item = state.items.find((entry) => entry.id === action.itemId);
+        if (!item || item.status !== action.status || item.resolvedAt !== action.resolvedAt) return;
+        item.status = 'active';
+        item.resolvedAt = null;
+        state.lastAction = null;
+        persist();
+        const message = `${item.name} returned to your fridge. Its outcome value was reversed.${sessionSuffix()}`;
+        render(message);
+        $(`consumed-${item.id}`).focus();
+        const totals = getTotals();
+        announce(`${message} All-time food value saved: ${formatMoney(totals.saved)}. Discarded: ${formatMoney(totals.discarded)}.`);
+      }
+
+      function scheduleDateRefresh() {
+        window.clearTimeout(midnightTimer);
+        const now = new Date();
+        const tomorrow = new Date(now);
+        tomorrow.setHours(24, 0, 0, 0);
+        midnightTimer = window.setTimeout(() => {
+          render();
+          scheduleDateRefresh();
+        }, tomorrow.getTime() - now.getTime() + 100);
+      }
+
+      ui.form.addEventListener('submit', addItem);
+      ui.list.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-action]');
+        if (button && ui.list.contains(button)) resolveItem(button.dataset.id, button.dataset.action);
+      });
+      ui.undo.addEventListener('click', undoLastOutcome);
+      for (const [input, errorId] of [[ui.name, 'name-error'], [ui.value, 'value-error'], [ui.date, 'date-error']]) {
+        input.addEventListener('input', () => setFieldError(input, errorId, ''));
+      }
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          syncLatestBeforeChange();
+          render();
+          scheduleDateRefresh();
+        }
+      });
+      window.addEventListener('storage', (event) => {
+        if (storageAvailable && (event.key === STORAGE_KEY || event.key === null)) {
+          syncLatestBeforeChange();
+          render();
+          announce('Your fridge was updated in another tab.');
+        }
+      });
+
+      $('file-note').hidden = window.location.protocol !== 'file:';
+      loadState();
+      render();
+      scheduleDateRefresh();
+    })();
+  </script>
+</body>
+</html>
